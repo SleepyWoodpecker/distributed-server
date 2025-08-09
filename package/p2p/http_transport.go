@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"sync"
@@ -16,7 +17,7 @@ type TCPPeer struct {
 
 func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{
-		conn: conn,
+		conn:     conn,
 		outbound: outbound,
 	}
 }
@@ -24,20 +25,21 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 type TCPTransportOpts struct {
 	ListenAddr string
 	HandshakeFunc
+	Decoder
 }
 
 type TCPTransport struct {
 	TCPTransportOpts
 
 	listener net.Listener
-	
+
 	// mutexes are usually placed above the thing they are meant to guard
 	mu sync.RWMutex
 	// net address represents a network connection and a destination address
-	peerMap map[net.Addr]Peer 
+	peerMap map[net.Addr]Peer
 }
 
-// chose to return a TCPTransport rather than a transport here 
+// chose to return a TCPTransport rather than a transport here
 // becuase it would make accessing its struct members easier (no need to do a type assertion)
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
@@ -47,7 +49,7 @@ func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 
 func (t *TCPTransport) ListenAndAccept() error {
 	var err error
-	
+
 	t.listener, err = net.Listen("tcp", t.ListenAddr)
 
 	if err != nil {
@@ -73,7 +75,7 @@ func (t *TCPTransport) listenLoop() {
 }
 
 func (t *TCPTransport) acceptConn(conn net.Conn) {
-	peer := NewTCPPeer(conn, false);
+	peer := NewTCPPeer(conn, false)
 	defer peer.conn.Close()
 
 	// prints structs in a human readable way
@@ -83,5 +85,16 @@ func (t *TCPTransport) acceptConn(conn net.Conn) {
 	if err := t.HandshakeFunc(peer); err != nil {
 		fmt.Printf("TCP Handshake error: %+v\n", err)
 		return
+	}
+
+	// receive incoming messages
+	buffer := new(bytes.Buffer)
+	for {
+		if err := t.Decode(conn, buffer); err != nil {
+			fmt.Printf("TCP Decode erorr: %+v\n", err)
+			return
+		}
+
+		fmt.Printf("Msg: %s", buffer)
 	}
 }
