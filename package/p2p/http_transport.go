@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"sync"
 )
 
 type TCPPeer struct {
@@ -22,6 +21,10 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+func (p *TCPPeer) Close() error {
+	return p.conn.Close()
+}
+
 type TCPTransportOpts struct {
 	ListenAddr string
 	HandshakeFunc
@@ -31,12 +34,8 @@ type TCPTransportOpts struct {
 type TCPTransport struct {
 	TCPTransportOpts
 
-	listener net.Listener
-
-	// mutexes are usually placed above the thing they are meant to guard
-	mu sync.RWMutex
-	// net address represents a network connection and a destination address
-	peerMap map[net.Addr]Peer
+	listener   net.Listener
+	msgChannel chan Message
 }
 
 // chose to return a TCPTransport rather than a transport here
@@ -44,7 +43,12 @@ type TCPTransport struct {
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
 	return &TCPTransport{
 		TCPTransportOpts: opts,
+		msgChannel:       make(chan Message),
 	}
+}
+
+func (t *TCPTransport) Consume() <-chan Message {
+	return t.msgChannel
 }
 
 func (t *TCPTransport) ListenAndAccept() error {
@@ -76,7 +80,7 @@ func (t *TCPTransport) listenLoop() {
 
 func (t *TCPTransport) acceptConn(conn net.Conn) {
 	peer := NewTCPPeer(conn, false)
-	defer peer.conn.Close()
+	defer peer.Close()
 
 	// prints structs in a human readable way
 	fmt.Printf("Incoming connection from %+v\n", peer)
@@ -88,12 +92,13 @@ func (t *TCPTransport) acceptConn(conn net.Conn) {
 	}
 
 	// receive incoming messages
-	msg := &Message{}
+	msg := Message{}
 	for {
 		// all errors to be handled at the top most component here
-		if err := t.Decode(conn, msg); err != nil {
+		if err := t.Decode(conn, &msg); err != nil {
 			if err == io.EOF {
 				fmt.Println("Closing connection")
+				return
 			}
 
 			fmt.Printf("TCP Decode erorr: %+v\n", err)
@@ -102,6 +107,6 @@ func (t *TCPTransport) acceptConn(conn net.Conn) {
 
 		// record the sender address so you can send back a message later
 		msg.From = conn.RemoteAddr()
-		fmt.Printf("Incoming message: %+v\n", msg)
+		t.msgChannel <- msg
 	}
 }

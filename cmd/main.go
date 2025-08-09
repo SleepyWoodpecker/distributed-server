@@ -20,5 +20,7 @@ func main() {
 	fmt.Printf("Starting our TCP server at %s\n", PORT)
 
 	// introduce a blocking loop
-	select {}
+	for msg := range tr.Consume() {
+		fmt.Printf("Incoming message: %+v\n", msg)
+	}
 }
