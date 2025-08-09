@@ -1,11 +1,12 @@
 
 FILES = cmd/main.go
+BUILD = out
 
 build: 
-	go build -o server $(FILES)
+	go build -o $(BUILD)/server $(FILES)
 
 run: build
-	./server
+	./$(BUILD)/server
 
 test:
 	@# this matches all subdirectories in the current directory
