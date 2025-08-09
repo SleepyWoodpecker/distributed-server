@@ -11,9 +11,9 @@ import (
 	"strings"
 )
 
-var ROOT string;
+var ROOT string
 
-// set the ROOT path to be the 
+// set the ROOT path to be the
 func init() {
 	currentFilePath, err := os.Getwd()
 
@@ -23,12 +23,12 @@ func init() {
 
 	// move up one directory
 	filePortions := strings.Split(currentFilePath, "/")
-	ROOT = strings.Join(filePortions[:len(filePortions) - 2], "/") + "/CAS"
+	ROOT = strings.Join(filePortions[:len(filePortions)-2], "/") + "/CAS"
 }
 
 type FullPathname struct {
 	FolderName string
-	FileName string
+	FileName   string
 }
 
 func (f *FullPathname) FullPath() string {
@@ -42,9 +42,9 @@ type StoreOpts struct {
 }
 
 func DefaultPathTransformFunc(key string) FullPathname {
-	return FullPathname {
+	return FullPathname{
 		FolderName: key,
-		FileName: key,
+		FileName:   key,
 	}
 }
 
@@ -63,7 +63,7 @@ func CASPathTransformFunc(key string) FullPathname {
 	hashedString := hex.EncodeToString(hashedData)
 
 	return FullPathname{
-		FileName: hashedString[2:],
+		FileName:   hashedString[2:],
 		FolderName: ROOT + "/" + hashedString[:2],
 	}
 }
@@ -88,7 +88,7 @@ func (s *Store) Read(key string) ([]byte, error) {
 
 	buf := new(bytes.Buffer)
 	_, err = io.Copy(buf, f)
-	
+
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 		return err
 	}
 	defer f.Close()
-	
+
 	// write to the file
 	n, err := io.Copy(f, r)
 	if err != nil {
@@ -149,7 +149,7 @@ func (s *Store) deleteFile(key string) error {
 	pathName := s.PathTransformFunc(key)
 
 	_, err := os.Stat(pathName.FullPath())
-	
+
 	if errors.Is(err, os.ErrNotExist) {
 		errorMessage := fmt.Sprintf("File %s does not exist", pathName.FullPath())
 		panic(errorMessage)
@@ -184,15 +184,15 @@ func (s *Store) removeAllEmptyParentFolders(currentFolderPath string) error {
 	}
 
 	fileCount, err := numFiles(currentFolderPath)
-	
-	if err != nil || fileCount != 0{
+
+	if err != nil || fileCount != 0 {
 		return err
 	}
 
 	os.Remove(currentFolderPath)
 
 	fileNames := strings.Split(currentFolderPath, "/")
-	parntFolderPath := strings.Join(fileNames[:len(fileNames) - 1], "/")
+	parntFolderPath := strings.Join(fileNames[:len(fileNames)-1], "/")
 
 	return s.removeAllEmptyParentFolders(parntFolderPath)
 }

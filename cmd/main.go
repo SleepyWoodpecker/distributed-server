@@ -1,26 +1,39 @@
 package main
 
 import (
+	"distfileserver/pkg/fileserver"
 	"distfileserver/pkg/p2p"
+	"distfileserver/pkg/store"
 	"fmt"
+	"os"
 )
 
 const PORT = ":3000"
 
 func main() {
-	opts := p2p.TCPTransportOpts{
+	transportOpts := p2p.TCPTransportOpts{
 		ListenAddr:    PORT,
 		HandshakeFunc: p2p.NOPHandshake,
 		Decoder:       p2p.DefaultDecoder{},
 	}
 
-	tr := p2p.NewTCPTransport(opts)
-	tr.ListenAndAccept()
+	storeOpts := store.StoreOpts{
+		PathTransformFunc: store.CASPathTransformFunc,
+	}
 
-	fmt.Printf("Starting our TCP server at %s\n", PORT)
+	server := fileserver.NewFileServer(
+		fileserver.FileServerOpts{},
+		storeOpts,
+		transportOpts,
+	)
+
+	if err := server.Start(); err != nil {
+		fmt.Printf("Error starting server: %v", err)
+		os.Exit(1)
+	}
 
 	// introduce a blocking loop
-	for msg := range tr.Consume() {
+	for msg := range server.Transport.Consume() {
 		fmt.Printf("Incoming message: %+v\n", msg)
 	}
 }
