@@ -1,11 +1,14 @@
 package store
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 type FullPathname struct {
 	FolderName string
@@ -44,8 +47,8 @@ func CASPathTransformFunc(key string) FullPathname {
 	hashedString := hex.EncodeToString(hashedData)
 
 	return FullPathname{
-		FileName: key,
-		FolderName: hashedString,
+		FileName: hashedString[2:],
+		FolderName: "CAS/" + hashedString[:2],
 	}
 }
 
@@ -59,6 +62,26 @@ func NewStore(opts StoreOpts) *Store {
 	}
 }
 
+func (s *Store) Read(key string) ([]byte, error) {
+	f, err := s.readStream(key)
+
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, f)
+	
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(buf)
+
+	return buf.Bytes(), nil
+}
+
 // take in a reader stream and write it to the local file system
 func (s *Store) writeStream(key string, r io.Reader) error {
 	pathName := s.PathTransformFunc(key)
@@ -69,7 +92,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	}
 
 	// create the file in the local file structure
-	fullFileName := "CAS/" + pathName.FullPath()
+	fullFileName := pathName.FullPath()
 
 	f, err := os.Create(fullFileName)
 	if err != nil {
@@ -85,4 +108,78 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	fmt.Printf("Created a file of %d bytes\n", n)
 
 	return nil
+}
+
+func (s *Store) readStream(key string) (io.ReadCloser, error) {
+	pathName := s.PathTransformFunc(key)
+	return os.Open(pathName.FullPath())
+}
+
+// delete the file by the file name
+// panics if the file does not exist
+func (s *Store) deleteFile(key string) error {
+	pathName := s.PathTransformFunc(key)
+
+	_, err := os.Stat(pathName.FullPath())
+	
+	if errors.Is(err, os.ErrNotExist) {
+		errorMessage := fmt.Sprintf("File %s does not exist", pathName.FullPath())
+		panic(errorMessage)
+	} else if err != nil {
+		return err
+	}
+
+	os.Remove(pathName.FullPath())
+	fileComponents := strings.Split(pathName.FullPath(), "/")
+
+	return s.removeAllEmptyParentFolders(strings.Join(fileComponents[:len(fileComponents)-1], "/"))
+}
+
+// remove all empty directories
+// stop only when the CAS folder is reached
+func (s *Store) removeAllEmptyParentFolders(currentFolderPath string) error {
+	if strings.HasSuffix(currentFolderPath, "CAS") {
+		return nil
+	}
+
+	fileInfo, err := os.Stat(currentFolderPath)
+
+	if errors.Is(err, os.ErrNotExist) {
+		errorMessage := fmt.Sprintf("File %s does not exist", currentFolderPath)
+		panic(errorMessage)
+	} else if err != nil {
+		return err
+	}
+
+	if !fileInfo.IsDir() {
+		return nil
+	}
+
+	fileCount, err := numFiles(currentFolderPath)
+	
+	if err != nil || fileCount != 0{
+		return err
+	}
+
+	os.Remove(currentFolderPath)
+
+	fileNames := strings.Split(currentFolderPath, "/")
+	parntFolderPath := strings.Join(fileNames[:len(fileNames) - 1], "/")
+
+	return s.removeAllEmptyParentFolders(parntFolderPath)
+}
+
+func numFiles(pathName string) (int, error) {
+	dirEntries, err := os.ReadDir(pathName)
+
+	if err != nil {
+		return 0, err
+	}
+
+	fileCount := 0
+	for range dirEntries {
+		fileCount++
+	}
+
+	return fileCount, nil
 }

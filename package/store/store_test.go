@@ -8,21 +8,32 @@ import (
 )
 
 func TestStore(t *testing.T) {
+	// test the creation of a new file
 	opts := StoreOpts{
 		PathTransformFunc: CASPathTransformFunc,
 	}
 	store := NewStore(opts)
 
-	data := bytes.NewReader([]byte("This is a string"))
+	storedData := "This is a string"
+	fileName := "test"
+	data := bytes.NewReader([]byte(storedData))
 	
-	assert.Nil(t, store.writeStream("test", data))
+	assert.Nil(t, store.writeStream(fileName, data))
+
+	// test the reading of the new file
+	readData, err := store.Read(fileName)
+	assert.Nil(t, err)
+
+	assert.Equal(t, storedData, string(readData))
+
+	store.deleteFile(fileName)
 }
 
 func TestCASHash(t *testing.T) {
 	intialString := "Thisisastring"
-	expectedOutput := "f7/2017485fbf6423499baf9b240daa14f5f095a1/Thisisiastring"
+	expectedOutput := "CAS/ea/2597d38124fbd43edff2816347b425d8666bd1"
 
 	fileData := CASPathTransformFunc(intialString)
 	
-	assert.Equal(t, fileData.FullPath(), expectedOutput)
+	assert.Equal(t, expectedOutput, fileData.FullPath())
 }
