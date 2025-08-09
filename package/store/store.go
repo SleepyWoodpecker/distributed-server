@@ -7,21 +7,34 @@ import (
 	"io"
 	"os"
 )
+type FullPathname struct {
+	FolderName string
+	FileName string
+}
 
-type PathTransformFunc func(key string)string
+func (f *FullPathname) FullPath() string {
+	return fmt.Sprintf("%s/%s", f.FolderName, f.FileName)
+}
+
+type PathTransformFunc func(key string) FullPathname
 
 type StoreOpts struct {
 	PathTransformFunc
 }
 
-func DefaultPathTransformFunc(key string) string {
-	return key
+func DefaultPathTransformFunc(key string) FullPathname {
+	return FullPathname {
+		FolderName: key,
+		FileName: key,
+	}
 }
 
 // create a sha-1 hash and store the files like git would
 // first 2 characters are the folder name
 // other 2 characters are the file name
-func CASPathTransformFunc(key string) string {
+// TODO: find some way to hash the filename based on the file type or smth
+// Files need to have unique filenames else they are cooked
+func CASPathTransformFunc(key string) FullPathname {
 	data := []byte(key)
 
 	hasher := sha1.New()
@@ -30,7 +43,10 @@ func CASPathTransformFunc(key string) string {
 	hashedData := hasher.Sum(nil)
 	hashedString := hex.EncodeToString(hashedData)
 
-	return hashedString[:2] + "/" + hashedString[2:]
+	return FullPathname{
+		FileName: key,
+		FolderName: hashedString,
+	}
 }
 
 type Store struct {
@@ -48,13 +64,12 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	pathName := s.PathTransformFunc(key)
 
 	// create the directory if it does not yet exist
-	if err := os.MkdirAll(pathName, os.ModePerm); err != nil {
+	if err := os.MkdirAll(pathName.FolderName, os.ModePerm); err != nil {
 		return err
 	}
 
 	// create the file in the local file structure
-	fileName := "somepath"
-	fullFileName := "CAS/" + pathName + "/" + fileName
+	fullFileName := "CAS/" + pathName.FullPath()
 
 	f, err := os.Create(fullFileName)
 	if err != nil {

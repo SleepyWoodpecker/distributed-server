@@ -19,8 +19,10 @@ func TestStore(t *testing.T) {
 }
 
 func TestCASHash(t *testing.T) {
-	intialString := "This is a string"
-	expectedOutput := "f7/2017485fbf6423499baf9b240daa14f5f095a1"
+	intialString := "Thisisastring"
+	expectedOutput := "f7/2017485fbf6423499baf9b240daa14f5f095a1/Thisisiastring"
+
+	fileData := CASPathTransformFunc(intialString)
 	
-	assert.Equal(t, CASPathTransformFunc(intialString), expectedOutput)
+	assert.Equal(t, fileData.FullPath(), expectedOutput)
 }
