@@ -1,8 +1,8 @@
 package p2p
 
 import (
-	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 )
@@ -88,13 +88,20 @@ func (t *TCPTransport) acceptConn(conn net.Conn) {
 	}
 
 	// receive incoming messages
-	buffer := new(bytes.Buffer)
+	msg := &Message{}
 	for {
-		if err := t.Decode(conn, buffer); err != nil {
+		// all errors to be handled at the top most component here
+		if err := t.Decode(conn, msg); err != nil {
+			if err == io.EOF {
+				fmt.Println("Closing connection")
+			}
+
 			fmt.Printf("TCP Decode erorr: %+v\n", err)
 			return
 		}
 
-		fmt.Printf("Msg: %s", buffer)
+		// record the sender address so you can send back a message later
+		msg.From = conn.RemoteAddr()
+		fmt.Printf("Incoming message: %+v\n", msg)
 	}
 }
