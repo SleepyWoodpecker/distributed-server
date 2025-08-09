@@ -1,6 +1,8 @@
 package store
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +16,21 @@ type StoreOpts struct {
 
 func DefaultPathTransformFunc(key string) string {
 	return key
+}
+
+// create a sha-1 hash and store the files like git would
+// first 2 characters are the folder name
+// other 2 characters are the file name
+func CASPathTransformFunc(key string) string {
+	data := []byte(key)
+
+	hasher := sha1.New()
+	hasher.Write(data)
+
+	hashedData := hasher.Sum(nil)
+	hashedString := hex.EncodeToString(hashedData)
+
+	return hashedString[:2] + "/" + hashedString[2:]
 }
 
 type Store struct {
@@ -37,7 +54,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 
 	// create the file in the local file structure
 	fileName := "somepath"
-	fullFileName := pathName + "/" + fileName
+	fullFileName := "CAS/" + pathName + "/" + fileName
 
 	f, err := os.Create(fullFileName)
 	if err != nil {
