@@ -84,6 +84,18 @@ func (s *Store) Read(key string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func (s *Store) Has(key string) bool {
+	pathName := CASPathTransformFunc(key)
+
+	_, err := os.Stat(pathName.FullPath())
+
+	return err != nil
+}
+
+func (s *Store) Write(key string, r io.Reader) error {
+	return s.writeStream(key, r)
+}
+
 // take in a reader stream and write it to the local file system
 func (s *Store) writeStream(key string, r io.Reader) error {
 	pathName := s.PathTransformFunc(key)
@@ -184,12 +196,4 @@ func numFiles(pathName string) (int, error) {
 	}
 
 	return fileCount, nil
-}
-
-func (s *Store) Has(key string) bool {
-	pathName := CASPathTransformFunc(key)
-
-	_, err := os.Stat(pathName.FullPath())
-
-	return err != nil
 }
