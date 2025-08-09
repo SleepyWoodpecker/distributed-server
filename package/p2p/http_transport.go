@@ -6,6 +6,21 @@ import (
 	"sync"
 )
 
+type TCPPeer struct {
+	conn net.Conn
+
+	// a connection is considered to be outbound if it is the one making the connection request
+	// a connection is considered to be inbound if it is the one receiving the connection request
+	outbound bool
+}
+
+func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
+	return &TCPPeer{
+		conn: conn,
+		outbound: outbound,
+	}
+}
+
 type TCPTransport struct {
 	listenAddr string
 	listener net.Listener
@@ -52,6 +67,8 @@ func (t *TCPTransport) listenLoop() {
 }
 
 func (t *TCPTransport) acceptConn(conn net.Conn) {
+	peer := NewTCPPeer(conn, false);
+
 	// prints structs in a human readable way
-	fmt.Printf("Incoming connection from %+v\n", conn)
+	fmt.Printf("Incoming connection from %+v\n", peer)
 }

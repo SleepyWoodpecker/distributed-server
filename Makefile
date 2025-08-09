@@ -1,5 +1,8 @@
+
+FILES = cmd/main.go
+
 build: 
-	go build -o server
+	go build -o server $(FILES)
 
 run: build
 	./server
