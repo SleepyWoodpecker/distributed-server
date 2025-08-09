@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 )
+
+const ROOT = "CAS"
 type FullPathname struct {
 	FolderName string
 	FileName string
@@ -48,7 +50,7 @@ func CASPathTransformFunc(key string) FullPathname {
 
 	return FullPathname{
 		FileName: hashedString[2:],
-		FolderName: "CAS/" + hashedString[:2],
+		FolderName: ROOT + "/" + hashedString[:2],
 	}
 }
 
@@ -182,4 +184,12 @@ func numFiles(pathName string) (int, error) {
 	}
 
 	return fileCount, nil
+}
+
+func (s *Store) Has(key string) bool {
+	pathName := CASPathTransformFunc(key)
+
+	_, err := os.Stat(pathName.FullPath())
+
+	return err != nil
 }
