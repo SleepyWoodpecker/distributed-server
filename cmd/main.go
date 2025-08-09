@@ -1,7 +1,7 @@
 package main
 
 import (
-	"distfileserver/package/p2p"
+	"distfileserver/pkg/p2p"
 	"fmt"
 )
 

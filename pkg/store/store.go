@@ -11,7 +11,21 @@ import (
 	"strings"
 )
 
-const ROOT = "CAS"
+var ROOT string;
+
+// set the ROOT path to be the 
+func init() {
+	currentFilePath, err := os.Getwd()
+
+	if err != nil {
+		panic("Store: Cannot get current file path")
+	}
+
+	// move up one directory
+	filePortions := strings.Split(currentFilePath, "/")
+	ROOT = strings.Join(filePortions[:len(filePortions) - 2], "/") + "/CAS"
+}
+
 type FullPathname struct {
 	FolderName string
 	FileName string

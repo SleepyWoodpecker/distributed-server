@@ -31,7 +31,9 @@ func TestStore(t *testing.T) {
 
 func TestCASHash(t *testing.T) {
 	intialString := "Thisisastring"
-	expectedOutput := "CAS/ea/2597d38124fbd43edff2816347b425d8666bd1"
+
+	
+	expectedOutput := ROOT + "/ea/2597d38124fbd43edff2816347b425d8666bd1"
 
 	fileData := CASPathTransformFunc(intialString)
 	
