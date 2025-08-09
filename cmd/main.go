@@ -8,7 +8,8 @@ import (
 const PORT = ":3000"
 
 func main() {
-	tr := p2p.NewTCPTransport(PORT)
+	opts := p2p.TCPTransportOpts{ListenAddr: PORT, HandshakeFunc: p2p.NOPHandshake}
+	tr := p2p.NewTCPTransport(opts)
 	tr.ListenAndAccept()
 
 	fmt.Printf("Starting our TCP server at %s\n", PORT)
