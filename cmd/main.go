@@ -4,15 +4,25 @@ import (
 	"distfileserver/pkg/fileserver"
 	"distfileserver/pkg/p2p"
 	"distfileserver/pkg/store"
-	"fmt"
-	"os"
+	"log"
 )
 
-const PORT = ":3000"
-
 func main() {
+	server1 := makeServer(":3000", []string{})
+	server2 := makeServer(":4000", []string{":3000"})
+
+	go func() { log.Fatal(server1.Start()) }()
+	go func() {
+		<-server1.ServerDoneChan
+		log.Fatal(server2.Start())
+	}()
+
+	select {}
+}
+
+func makeServer(port string, bootstrapNodes []string) *fileserver.FileServer {
 	transportOpts := p2p.TCPTransportOpts{
-		ListenAddr:    PORT,
+		ListenAddr:    port,
 		HandshakeFunc: p2p.NOPHandshake,
 		Decoder:       p2p.DefaultDecoder{},
 	}
@@ -22,13 +32,13 @@ func main() {
 	}
 
 	server := fileserver.NewFileServer(
-		fileserver.FileServerOpts{},
+		fileserver.FileServerOpts{
+			BootstrapNodes: bootstrapNodes,
+		},
 		storeOpts,
 		transportOpts,
 	)
 
-	if err := server.Start(); err != nil {
-		fmt.Printf("Error starting server: %v", err)
-		os.Exit(1)
-	}
+	server.Transport.OnPeer = server.OnPeer
+	return server
 }

@@ -21,6 +21,10 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	}
 }
 
+func (p *TCPPeer) RemoteAddr() net.Addr {
+	return p.conn.RemoteAddr()
+}
+
 func (p *TCPPeer) Close() error {
 	return p.conn.Close()
 }
@@ -36,6 +40,7 @@ type TCPTransport struct {
 
 	listener   net.Listener
 	msgChannel chan Message
+	OnPeer     func(Peer) error
 }
 
 // chose to return a TCPTransport rather than a transport here
@@ -71,6 +76,17 @@ func (t *TCPTransport) Close() {
 	t.listener.Close()
 }
 
+func (t *TCPTransport) Dial(addr string) error {
+	conn, err := net.Dial("tcp", addr)
+
+	if err != nil {
+		return err
+	}
+
+	go t.acceptConn(conn, true)
+	return nil
+}
+
 func (t *TCPTransport) listenLoop() {
 	for {
 		conn, err := t.listener.Accept()
@@ -80,12 +96,12 @@ func (t *TCPTransport) listenLoop() {
 		}
 
 		// actually, is there a need for there to be more than one acceptor?
-		go t.acceptConn(conn)
+		go t.acceptConn(conn, false)
 	}
 }
 
-func (t *TCPTransport) acceptConn(conn net.Conn) {
-	peer := NewTCPPeer(conn, false)
+func (t *TCPTransport) acceptConn(conn net.Conn, outbound bool) {
+	peer := NewTCPPeer(conn, outbound)
 	defer peer.Close()
 
 	// prints structs in a human readable way
@@ -95,6 +111,13 @@ func (t *TCPTransport) acceptConn(conn net.Conn) {
 	if err := t.HandshakeFunc(peer); err != nil {
 		fmt.Printf("TCP Handshake error: %+v\n", err)
 		return
+	}
+
+	if t.OnPeer != nil {
+		if err := t.OnPeer(peer); err != nil {
+			fmt.Printf("Peer validation error: %v\n", err)
+			return
+		}
 	}
 
 	// receive incoming messages
