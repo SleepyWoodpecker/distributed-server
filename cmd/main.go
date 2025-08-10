@@ -31,9 +31,4 @@ func main() {
 		fmt.Printf("Error starting server: %v", err)
 		os.Exit(1)
 	}
-
-	// introduce a blocking loop
-	for msg := range server.Transport.Consume() {
-		fmt.Printf("Incoming message: %+v\n", msg)
-	}
 }

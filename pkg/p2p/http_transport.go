@@ -67,6 +67,10 @@ func (t *TCPTransport) ListenAndAccept() error {
 	return nil
 }
 
+func (t *TCPTransport) Close() {
+	t.listener.Close()
+}
+
 func (t *TCPTransport) listenLoop() {
 	for {
 		conn, err := t.listener.Accept()
