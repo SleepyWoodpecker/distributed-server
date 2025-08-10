@@ -81,7 +81,7 @@ func (s *FileServer) loop() {
 			}
 
 			// print out the contents of the gob
-			fmt.Printf("%+v\n", p)
+			s.Store.Write(p.Key, bytes.NewReader(p.Data))
 		case <-s.quitch:
 			return
 		}
@@ -132,17 +132,13 @@ func (s *FileServer) broadcast(p Payload) error {
 }
 
 func (s *FileServer) StoreData(key string, r io.Reader) error {
-	// store the file to disk
-	if err := s.Store.Write(key, r); err != nil {
-		return err
-	}
-
 	// broadcast this file to other peers in the network
 	buf := new(bytes.Buffer)
 
-	_, err := io.Copy(buf, r)
+	teeReder := io.TeeReader(r, buf)
 
-	if err != nil {
+	// store the file to disk
+	if err := s.Store.Write(key, teeReder); err != nil {
 		return err
 	}
 
