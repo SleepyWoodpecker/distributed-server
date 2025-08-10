@@ -6,6 +6,7 @@ import "net"
 type Peer interface {
 	RemoteAddr() net.Addr
 	Close() error
+	Send(b []byte) error
 }
 
 // A transport is anything that handles the
