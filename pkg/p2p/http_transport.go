@@ -29,6 +29,11 @@ func (p *TCPPeer) Close() error {
 	return p.conn.Close()
 }
 
+func (p *TCPPeer) Send(b []byte) error {
+	_, err := p.conn.Write(b)
+	return err
+}
+
 type TCPTransportOpts struct {
 	ListenAddr string
 	HandshakeFunc
