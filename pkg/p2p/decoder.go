@@ -21,7 +21,7 @@ func (dec DefaultDecoder) Decode(r io.Reader, msg *Message) error {
 	// make a buffer to read the incoming message
 	// if the current message overflows the buffer, the reader will just stop reading and decode
 	// this in the next iteration of the loop
-	buf := make([]byte, 10)
+	buf := make([]byte, 1024)
 
 	n, err := r.Read(buf)
 

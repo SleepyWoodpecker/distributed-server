@@ -1,9 +1,12 @@
 package fileserver
 
 import (
+	"bytes"
 	"distfileserver/pkg/p2p"
 	"distfileserver/pkg/store"
+	"encoding/gob"
 	"fmt"
+	"io"
 	"sync"
 )
 
@@ -71,6 +74,14 @@ func (s *FileServer) loop() {
 		select {
 		case msg := <-s.Transport.Consume():
 			fmt.Printf("Incoming message: %+v\n", msg)
+			// decode the gob first
+			var p Payload;
+			if err := gob.NewDecoder(bytes.NewBuffer(msg.Payload)).Decode(&p); err != nil {
+				fmt.Printf("Error parsing incoming message %v\n", err)
+			}
+
+			// print out the contents of the gob
+			fmt.Printf("%+v\n", p)
 		case <-s.quitch:
 			return
 		}
@@ -99,4 +110,46 @@ func (s *FileServer) OnPeer(p p2p.Peer) error {
 
 	s.peers[p.RemoteAddr().String()] = p
 	return nil
+}
+
+type Payload struct {
+	Key string
+	Data []byte
+}
+
+func (s *FileServer) broadcast(p Payload) error {
+	// create an array of all the peers
+	peerVec := make([]io.Writer, 0)
+
+	for _, peer := range s.peers {
+		peerVec = append(peerVec, peer)
+	}
+
+	// duplicate writes to all provided writers
+	mw := io.MultiWriter(peerVec...)
+	
+	return gob.NewEncoder(mw).Encode(p)
+}
+
+func (s *FileServer) StoreData(key string, r io.Reader) error {
+	// store the file to disk
+	if err := s.Store.Write(key, r); err != nil {
+		return err
+	}
+
+	// broadcast this file to other peers in the network
+	buf := new(bytes.Buffer)
+
+	_, err := io.Copy(buf, r)
+
+	if err != nil {
+		return err
+	}
+
+	payload := &Payload{
+		Key: key,
+		Data: buf.Bytes(),
+	}
+
+	return s.broadcast(*payload)
 }

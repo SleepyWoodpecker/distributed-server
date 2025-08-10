@@ -23,7 +23,7 @@ func init() {
 
 	// move up one directory
 	filePortions := strings.Split(currentFilePath, "/")
-	ROOT = strings.Join(filePortions[:len(filePortions)-2], "/") + "/CAS"
+	ROOT = strings.Join(filePortions, "/") + "/CAS"
 }
 
 type FullPathname struct {
@@ -35,10 +35,11 @@ func (f *FullPathname) FullPath() string {
 	return fmt.Sprintf("%s/%s", f.FolderName, f.FileName)
 }
 
-type PathTransformFunc func(key string) FullPathname
+type PathTransformFunc func(key string, rootPath string) FullPathname
 
 type StoreOpts struct {
 	PathTransformFunc
+	RootPath string
 }
 
 func DefaultPathTransformFunc(key string) FullPathname {
@@ -53,7 +54,7 @@ func DefaultPathTransformFunc(key string) FullPathname {
 // other 2 characters are the file name
 // TODO: find some way to hash the filename based on the file type or smth
 // Files need to have unique filenames else they are cooked
-func CASPathTransformFunc(key string) FullPathname {
+func CASPathTransformFunc(key string, rootPath string) FullPathname {
 	data := []byte(key)
 
 	hasher := sha1.New()
@@ -64,7 +65,7 @@ func CASPathTransformFunc(key string) FullPathname {
 
 	return FullPathname{
 		FileName:   hashedString[2:],
-		FolderName: ROOT + "/" + hashedString[:2],
+		FolderName: rootPath + "/" + hashedString[:2],
 	}
 }
 
@@ -93,13 +94,11 @@ func (s *Store) Read(key string) ([]byte, error) {
 		return nil, err
 	}
 
-	fmt.Println(buf)
-
 	return buf.Bytes(), nil
 }
 
 func (s *Store) Has(key string) bool {
-	pathName := CASPathTransformFunc(key)
+	pathName := CASPathTransformFunc(key, s.RootPath)
 
 	_, err := os.Stat(pathName.FullPath())
 
@@ -112,7 +111,7 @@ func (s *Store) Write(key string, r io.Reader) error {
 
 // take in a reader stream and write it to the local file system
 func (s *Store) writeStream(key string, r io.Reader) error {
-	pathName := s.PathTransformFunc(key)
+	pathName := s.PathTransformFunc(key, s.RootPath)
 
 	// create the directory if it does not yet exist
 	if err := os.MkdirAll(pathName.FolderName, os.ModePerm); err != nil {
@@ -133,20 +132,20 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Created a file of %d bytes\n", n)
+	fmt.Printf("Created a file %s of %d bytes\n", fullFileName, n)
 
 	return nil
 }
 
 func (s *Store) readStream(key string) (io.ReadCloser, error) {
-	pathName := s.PathTransformFunc(key)
+	pathName := s.PathTransformFunc(key, s.RootPath)
 	return os.Open(pathName.FullPath())
 }
 
 // delete the file by the file name
 // panics if the file does not exist
 func (s *Store) deleteFile(key string) error {
-	pathName := s.PathTransformFunc(key)
+	pathName := s.PathTransformFunc(key, s.RootPath)
 
 	_, err := os.Stat(pathName.FullPath())
 

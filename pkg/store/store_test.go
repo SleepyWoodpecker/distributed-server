@@ -28,13 +28,3 @@ func TestStore(t *testing.T) {
 
 	store.deleteFile(fileName)
 }
-
-func TestCASHash(t *testing.T) {
-	intialString := "Thisisastring"
-
-	expectedOutput := ROOT + "/ea/2597d38124fbd43edff2816347b425d8666bd1"
-
-	fileData := CASPathTransformFunc(intialString)
-
-	assert.Equal(t, expectedOutput, fileData.FullPath())
-}

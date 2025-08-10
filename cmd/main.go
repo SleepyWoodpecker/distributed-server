@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"distfileserver/pkg/fileserver"
 	"distfileserver/pkg/p2p"
 	"distfileserver/pkg/store"
@@ -17,6 +18,9 @@ func main() {
 		log.Fatal(server2.Start())
 	}()
 
+	<-server2.ServerDoneChan
+	buf := bytes.NewReader([]byte("Sheesh the dish"))
+	server1.StoreData("this is some data", buf)
 	select {}
 }
 
@@ -29,6 +33,7 @@ func makeServer(port string, bootstrapNodes []string) *fileserver.FileServer {
 
 	storeOpts := store.StoreOpts{
 		PathTransformFunc: store.CASPathTransformFunc,
+		RootPath: store.ROOT + "/" + port + "_CAS",
 	}
 
 	server := fileserver.NewFileServer(
